@@ -11,6 +11,9 @@ pip install -r requirements.txt
 
 # HuggingFace Login
 huggingface-cli login
+
+# OpenAI API Key (optional)
+export OPENAI_API_KEY=[YOUR_KEY]
 ```
 
 # Model Downloading
