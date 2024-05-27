@@ -1,6 +1,6 @@
 # DebiasODE
 
-## Environment
+## Environment Setup
 ```shell
 # Conda Workspace
 conda create -n dice python=3.10
@@ -10,7 +10,7 @@ conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvi
 pip install -r requirements.txt
 ```
 
-## Evaluation Metrics
+## Evaluation
 - A Hand-Built Bias Benchmark for Question Answering (BBQ)
 
 ## Methodology
