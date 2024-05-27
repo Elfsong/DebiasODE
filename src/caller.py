@@ -31,5 +31,5 @@ class HF_Caller(Caller):
 # Unit Test
 if __name__ == "__main__":
     hf_caller = HF_Caller(model_path="gpt2", device_map="cuda:3")
-    outputs = hf_caller.generate(["def hello_world():"])
+    outputs = hf_caller.generate(["Hello,"])
     print(outputs)
