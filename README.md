@@ -1,4 +1,4 @@
-# DebiasODE
+# 🎲 DebiasODE
 
 ## Environment Setup
 ```shell
@@ -8,6 +8,9 @@ conda create -n dice python=3.10
 # Libraries
 conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install -r requirements.txt
+
+# HuggingFace Login
+huggingface-cli login
 ```
 
 ## Evaluation
