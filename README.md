@@ -13,6 +13,14 @@ pip install -r requirements.txt
 huggingface-cli login
 ```
 
+# Model Downloading
+```shell
+# A better way to download models
+HF_HUB_ENABLE_HF_TRANSFER=1
+model_name="meta-llama/Meta-Llama-3-8B"
+huggingface-cli download $model_name --cache-dir ./data/hf_cache
+```
+
 ## Evaluation
 - A Hand-Built Bias Benchmark for Question Answering (BBQ)
 
