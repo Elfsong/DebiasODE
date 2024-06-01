@@ -1,1 +1,3 @@
 data/*
+wandb/*
+src/__pycache__/*
