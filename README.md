@@ -20,7 +20,7 @@ export OPENAI_API_KEY=[YOUR_KEY]
 ```shell
 # A better way to download HuggingFace models
 export HF_HUB_ENABLE_HF_TRANSFER=1
-model_name="meta-llama/Meta-Llama-3-8B"
+model_name="meta-llama/Meta-Llama-3-70B"
 huggingface-cli download $model_name --cache-dir /raid/hpc/mingzhe/transformers_cache/
 ```
 
