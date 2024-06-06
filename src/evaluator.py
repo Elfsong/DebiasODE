@@ -12,7 +12,7 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = 'false'
 
 import wandb
-
+import argparse
 from tqdm import tqdm
 from caller import HF_Caller
 from typing import List, Dict 
@@ -131,14 +131,33 @@ class BBQ_Evaluator:
 if __name__ == "__main__":
     wandb.init(project="wts")
 
-    # BBQ Evaluation
-    # ["age", "disability_status", "gender_identity", "nationality", "physical_appearance", "race_ethnicity", "religion", "ses", "sexual_orientation"]
-    evaluator = BBQ_Evaluator("meta-llama/Meta-Llama-3-8B")
-    results = evaluator.evaluate('age')
-    print(results)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--benchmark', type=str, choices=['bbq', 'stereoset'])
+    parser.add_argument('--category', type=str)
+    parser.add_argument('--model_name', type=str)
+    args = parser.parse_args()
+    wandb.config.update(args)
+    print(wandb.config)
 
-    # StereoSet Evaluation
-    # ["race", "profession", "gender", "religion"]
-    evaluator = StereoSet_Evaluator('meta-llama/Meta-Llama-3-8B')
-    results = evaluator.evaluate('race')
-    print(results)
+    if wandb.config['benchmark'] == 'bbq':
+        evaluator = BBQ_Evaluator("meta-llama/Meta-Llama-3-8B")
+        result = evaluator.evaluate('age')
+    elif wandb.config['benchmark'] == 'stereoset':
+        evaluator = StereoSet_Evaluator('meta-llama/Meta-Llama-3-8B')
+        result = evaluator.evaluate('race')
+    else:
+        raise NotImplementedError(f"{wandb.config['benchmark']} is unknown.")
+
+    print(result)
+
+    # # BBQ Evaluation
+    # # ["age", "disability_status", "gender_identity", "nationality", "physical_appearance", "race_ethnicity", "religion", "ses", "sexual_orientation"]
+    # evaluator = BBQ_Evaluator("meta-llama/Meta-Llama-3-8B")
+    # results = evaluator.evaluate('age')
+    # print(results)
+
+    # # StereoSet Evaluation
+    # # ["race", "profession", "gender", "religion"]
+    # evaluator = StereoSet_Evaluator('meta-llama/Meta-Llama-3-8B')
+    # results = evaluator.evaluate('race')
+    # print(results)
