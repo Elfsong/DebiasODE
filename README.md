@@ -27,13 +27,17 @@ huggingface-cli download $model_name --cache-dir /raid/hpc/mingzhe/transformers_
 ## Evaluation
 - A Hand-Built Bias Benchmark for Question Answering (BBQ)
 ```shell
-# ["age", "disability_status", "gender_identity", "nationality", "physical_appearance", "race_ethnicity", "religion", "ses", "sexual_orientation"]
+# category = ["age", "disability_status", "gender_identity", "nationality", "physical_appearance", "race_ethnicity", "religion", "ses", "sexual_orientation"]
+
+# Example:
 python src/evaluator.py --benchmark bbq --category age --model_name meta-llama/Meta-Llama-3-8B
 ```
 
 - Measuring stereotypical bias in pretrained language models (StereoSet)
 ```shell
- # ["race", "profession", "gender", "religion"]
+ # category = ["race", "profession", "gender", "religion"]
+
+ # Example:
  python src/evaluator.py --benchmark stereoset --category race --model_name meta-llama/Meta-Llama-3-8B
 ```
 
