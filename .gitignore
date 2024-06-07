@@ -1,3 +1,4 @@
 data/*
 wandb/*
 src/__pycache__/*
+.vscode/*
