@@ -51,28 +51,28 @@ class HF_Caller(Caller):
         return self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
     
 class OpenAI_Caller(Caller):
-    def __init__(self, model_name: str) -> None:
+    def __init__(self, model_name: str, json_mode: bool) -> None:
         super().__init__()
         self.model_name = model_name
+        self.json_mode = json_mode
         self.client = OpenAI()
         
-    def generate(self, model_inputs: List[str]) -> List[str]:
+    def generate(self, model_inputs: List[str]) -> str:
         model_inputs = self.prompt_generate(model_inputs)
         model_outputs = list()
         for model_input in model_inputs:
             response = self.client.chat.completions.create(
                 model = self.model_name,
-                response_format = { "type": "json_object" },
+                response_format = { "type": "json_object" if self.json_mode else "text"}, 
                 messages = model_input
             )
-        model_outputs += [response.choices[0].message.content]
-        return model_outputs
+        return response.choices[0].message.content
     
     def prompt_generate(self, model_inputs: List[object]) -> List[str]:
         model_inputs_with_prompt = list()
         for model_input in model_inputs:
             model_inputs_with_prompt += [[
-                {"role": "system", "content": "You are a helpful assistant designed to output JSON only."},
+                {"role": "system", "content": "You are a helpful assistant designed to output" + "JSON" if self.json_mode else "plain text" + "only."},
                 {"role": "user", "content": f"{model_input}"}
             ]]
         return model_inputs_with_prompt
