@@ -3,7 +3,7 @@
 """
 Author: Du Mingzhe (mingzhe@nus.edu.sg)
 Date: 27/05/2024
-Description: BBQ Evaluator
+Description: Bias Evaluator
 """
 
 # Strik on the assigned GPU.
@@ -117,17 +117,18 @@ Answer JSON:"""
                 try:
                     # Inference
                     prompt = self.prompt_generate([instance])[0]
+                    print("Prompt:", prompt)
 
                     raw_result = self.model_caller.generate([prompt])[0][len(prompt):].strip()
                     raw_result = self.model_caller.stop_at_stop_token(["\n"], raw_result).strip()
                     result_json = loads(ensure_json(raw_result))
-                    # print("Response: ", result_json)
+                    print("Response: ", result_json)
 
                     answer = result_json["answer"]
                     answer = utils.charFilter(answer.upper())
                     answer_label = self.label_map[instance['answer_label']]
                     target_label = self.label_map[instance['target_label']]
-                    # print(answer, answer_label, target_label)
+                    print(answer, answer_label, target_label)
                     
                     if answer not in ["A", "B", "C"]:
                         raise Exception("Output Error")
@@ -143,6 +144,7 @@ Answer JSON:"""
                 except Exception as e:
                     print({"Error": repr(e), "Raw Result":raw_result})
                     self.count_map['error'] += 1
+            print("==========" * 5)
     
         wandb.log(self.count_map)
         print(self.count_map)
