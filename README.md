@@ -41,6 +41,11 @@ python src/evaluator.py --benchmark bbq --category age --model_name meta-llama/M
  python src/evaluator.py --benchmark stereoset --category race --model_name meta-llama/Meta-Llama-3-8B
 ```
 
+## Training Data Generation
+```shell
+python data_generator.py --category [CATEGORY] 
+```
+
 ## Methodology
 - LoRA Fine-tune for each attribute.
 - LoRA for all attributes.
