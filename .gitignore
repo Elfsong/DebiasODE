@@ -2,3 +2,4 @@ data/*
 wandb/*
 src/__pycache__/*
 .vscode/*
+src/playground.ipynb
