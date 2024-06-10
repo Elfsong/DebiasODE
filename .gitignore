@@ -3,3 +3,5 @@ wandb/*
 src/__pycache__/*
 .vscode/*
 src/playground.ipynb
+dpo_example.py
+sft_example.py
