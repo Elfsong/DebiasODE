@@ -1,3 +1,10 @@
+# coding: utf-8
+
+"""
+Author: Du Mingzhe (mingzhe@nus.edu.sg)
+Date: 07/06/2024
+Description: BBQ DPO Training Data Generator
+"""
 
 import argparse
 import pandas as pd

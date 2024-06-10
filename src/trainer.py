@@ -11,7 +11,7 @@ Description: Bias Trainer
 # 0. imports
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-# os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 import torch
 import datasets
@@ -27,29 +27,28 @@ from trl import SFTTrainer
 
 @dataclass
 class ScriptArguments:
-    model_name: Optional[str] = field(default="bigcode/starcoder2-7b", metadata={"help": "the model name"})
+    model_name: Optional[str] = field(default="meta-llama/Meta-Llama-3-8B", metadata={"help": "the model name"})
+    max_seq_length: Optional[int] = field(default=4096, metadata={"help": "the maximum sequence length"})
     load_in_4bit: Optional[bool] = field(default=True, metadata={"help": "Model 4 bit quant"})
+    load_in_8bit: Optional[bool] = field(default=False, metadata={"help": "Model 8 bit quant"})
     
-    log_with: Optional[str] = field(default="wandb", metadata={"help": "use 'wandb' to log with wandb"})
-
-    dataset_name: Optional[str] = field(default="Elfsong/Mercury", metadata={"help": "the dataset name"})
-    split: Optional[str] = field(default="train", metadata={"help": "the split to use"})
-    size_valid_set: Optional[int] = field(default=300, metadata={"help": "the size of the validation set"})
-
-    seq_length: Optional[int] = field(default=4096, metadata={"help": "the sequence length"})
-    max_steps: Optional[int] = field(default=800, metadata={"help": "the maximum number of sgd steps"})
+    dataset_name: Optional[str] = field(default="Elfsong/BBQ_DPO", metadata={"help": "the dataset name"})
+    split: Optional[str] = field(default="religion", metadata={"help": "the split to use"})
+    
+    max_steps: Optional[int] = field(default=100, metadata={"help": "the maximum number of training steps"})
     logging_steps: Optional[int] = field(default=4, metadata={"help": "the logging frequency"})
-    save_steps: Optional[int] = field(default=1000, metadata={"help": "the saving frequency"})
-    
+    save_steps: Optional[int] = field(default=200, metadata={"help": "the saving frequency"})
+
     per_device_train_batch_size: Optional[int] = field(default=2, metadata={"help": "the per device train batch size"})
     per_device_eval_batch_size: Optional[int] = field(default=1, metadata={"help": "the per device eval batch size"})
+
     gradient_accumulation_steps: Optional[int] = field(default=4, metadata={"help": "the gradient accumulation steps"})
     gradient_checkpointing: Optional[bool] = field(default=True, metadata={"help": "whether to use gradient checkpointing"})
-    
+
     group_by_length: Optional[bool] = field(default=False, metadata={"help": "whether to group by length"})
     packing: Optional[bool] = field(default=False, metadata={"help": "whether to use packing for SFTTrainer"})
 
-    lora_alpha: Optional[float] = field(default=8, metadata={"help": "the lora alpha parameter"})
+    lora_alpha: Optional[float] = field(default=16, metadata={"help": "the lora alpha parameter"})
     lora_dropout: Optional[float] = field(default=0.05, metadata={"help": "the lora dropout parameter"})
     lora_r: Optional[int] = field(default=8, metadata={"help": "the lora r parameter"})
 
@@ -59,7 +58,8 @@ class ScriptArguments:
     weight_decay: Optional[float] = field(default=0.05, metadata={"help": "the weight decay"})
     optimizer_type: Optional[str] = field(default="paged_adamw_32bit", metadata={"help": "the optimizer type"})
 
-    output_dir: Optional[str] = field(default="/home/mingzhe/Projects/Mercury/checkpoints", metadata={"help": "the output directory"})
+    output_dir: Optional[str] = field(default="data/checkpoints", metadata={"help": "the output directory"})
+    log_with: Optional[str] = field(default="wandb", metadata={"help": "use 'wandb' to log with wandb"})
     log_freq: Optional[int] = field(default=1, metadata={"help": "the logging frequency"})
 
 parser = HfArgumentParser(ScriptArguments)
@@ -71,7 +71,7 @@ if script_args.group_by_length and script_args.packing:
 print("Model Loading...")
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=script_args.load_in_4bit,
-    load_in_8bit=not script_args.load_in_4bit, 
+    load_in_8bit=script_args.load_in_8bit, 
     bnb_4bit_quant_type="nf4",
     bnb_4bit_use_double_quant=True,
     bnb_4bit_compute_dtype=torch.bfloat16,
@@ -80,12 +80,11 @@ bnb_config = BitsAndBytesConfig(
 base_model = AutoModelForCausalLM.from_pretrained(
     script_args.model_name,
     quantization_config=bnb_config,
-    # device_map={"": PartialState().process_index},
     device_map="auto",
     trust_remote_code=True,
     token=True,
 )
-base_model.config.use_cache = False
+base_model.config.use_cache = False,
 print("Model Loaded.")
 
 peft_config = LoraConfig(
@@ -117,62 +116,26 @@ training_args = TrainingArguments(
     optim=script_args.optimizer_type,
     bf16=True,
     remove_unused_columns=True,
-    run_name=f"sft_train_{script_args.model_name}",
+    run_name=f"bbq_sft_train_{script_args.model_name}",
     gradient_checkpointing=script_args.gradient_checkpointing,
 )
 
-print("Downloading dataset...")
-dataset = datasets.load_dataset(script_args.dataset_name)
-
-def prompt_generate(question_content, starter_code="", answer=""):
-    examples_json = {
-        "question": "You are given a 0-indexed array of positive integers nums. Find the number of triplets (i, j, k) that meet the following conditions:\n\n0 <= i < j < k < nums.length\nnums[i], nums[j], and nums[k] are pairwise distinct.\n\t\nIn other words, nums[i] != nums[j], nums[i] != nums[k], and nums[j] != nums[k].\n\n\n\nReturn the number of triplets that meet the conditions.\n \nExample 1:\n\nInput: nums = [4,4,2,4,3]\nOutput: 3\nExplanation: The following triplets meet the conditions:\n- (0, 2, 4) because 4 != 2 != 3\n- (1, 2, 4) because 4 != 2 != 3\n- (2, 3, 4) because 2 != 4 != 3\nSince there are 3 triplets, we return 3.\nNote that (2, 0, 4) is not a valid triplet because 2 > 0.\n\nExample 2:\n\nInput: nums = [1,1,1,1,1]\nOutput: 0\nExplanation: No triplets meet the conditions so we return 0.\n\n \nConstraints:\n\n3 <= nums.length <= 100\n1 <= nums[i] <= 1000\n\n",
-        "sample_code": 'class Solution(object):\n    def unequalTriplets(self, nums: List[int]) -> int:\n        """\n\t:type nums: List[int]\n\t:rtype: int\n\t"""\n        \n',
-        "answer": 'class Solution(object):\n    def unequalTriplets(self, nums: List[int]) -> int:\n        """\n\t:type nums: List[int]\n\t:rtype: int\n\t"""\n        \n        ans = 0\n        n = len(a)\n        for i in range(n):\n            for j in range(i + 1, n):\n                for k in range(j + 1, n):\n                    ans += len({a[i], a[j], a[k]}) == 3\n        return ans'
-    }
-
-    def get_example_prompt(example):
-        prompt = ""
-        prompt += "### Question\n"
-        prompt += example["question"]
-        prompt += "\n\n"
-        if starter_code:
-            prompt += "### Code Prompt\n"
-            prompt += example["sample_code"]
-            prompt += "\n\n"
-        prompt += "### Completion\n"
-        prompt += example["answer"]
-        if example["answer"]:
-            prompt += "\n\n"
-        return prompt
-
-    prompt = ""
-    # one-shot generation example
-    # prompt += get_example_prompt(examples_json)
-    # code generation
-    prompt += get_example_prompt({"question": question_content,"sample_code": starter_code,"answer": answer})
-    
-    return prompt
-
-def formatting_prompts_func(examples):
+def formatting_prompts_func(example):
     output_texts = []
-    for i in range(len(examples["pretty_content"])):
-        if len(examples["pretty_content"][i]) > 0:
-            content = examples["pretty_content"][i][0]
-            starter = examples["prompt"][i]
-            for s in examples["solutions"][i]:
-                solution = s['solution']
-                prompt = prompt_generate(content, starter, solution)
-                output_texts.append(prompt)
-                # output_texts.append(f'{content}\n{solution}')
+    for i in range(len(example['context'])):
+        text = f"{example['context'][i]} {example['win'][i]}"
+        output_texts.append(text)
     return output_texts
+
+print("Downloading dataset...")
+dataset = datasets.load_dataset(script_args.dataset_name, split=script_args.split).train_test_split(test_size=0.1)
 
 trainer = SFTTrainer(
     model=base_model,
     train_dataset=dataset['train'],
-    eval_dataset=dataset['eval'],
+    eval_dataset=dataset['test'],
     peft_config=peft_config,
-    max_seq_length=script_args.seq_length,
+    max_seq_length=script_args.max_seq_length,
     formatting_func=formatting_prompts_func,
     tokenizer=tokenizer,
     args=training_args,
