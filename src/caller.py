@@ -19,18 +19,17 @@ class Caller(ABC):
     def generate(self, model_inputs: List[str]) -> List[str]: pass 
 
 class HF_Caller(Caller):
-    def __init__(self, model_path: str, device_map: str, max_new_token: int) -> None:
+    def __init__(self, model_path: str) -> None:
         super().__init__()
         self.model_path = model_path
-        self.device_map = device_map
-        self.max_new_token = max_new_token
         nf4_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=True,
-            bnb_4bit_compute_dtype=torch.bfloat16
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            
         )
-        self.model = AutoModelForCausalLM.from_pretrained(self.model_path, device_map=self.device_map, quantization_config=nf4_config)
+        self.model = AutoModelForCausalLM.from_pretrained(self.model_path, device_map='auto', quantization_config=nf4_config)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
     
     def stop_at_stop_token(self, stop_words, decoded_string: str) -> str:
@@ -41,17 +40,17 @@ class HF_Caller(Caller):
                 min_stop_index = stop_index
         return decoded_string[:min_stop_index]
     
-    def generate(self, inputs: List[str]) -> List[str]:
-        model_inputs = self.tokenizer(inputs, return_tensors="pt").to(self.device_map)
+    def generate(self, inputs: List[str], max_new_token=256) -> List[str]:
+        model_inputs = self.tokenizer(inputs, return_tensors="pt").to('cuda')
         generated_ids = self.model.generate(
             **model_inputs, 
             pad_token_id=self.tokenizer.eos_token_id, 
-            max_new_tokens=self.max_new_token
+            max_new_tokens=max_new_token
         )
         return self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
     
 class OpenAI_Caller(Caller):
-    def __init__(self, model_name: str, json_mode: bool) -> None:
+    def __init__(self, model_name: str, json_mode=True) -> None:
         super().__init__()
         self.model_name = model_name
         self.json_mode = json_mode
@@ -59,7 +58,6 @@ class OpenAI_Caller(Caller):
         
     def generate(self, model_inputs: List[str]) -> str:
         model_inputs = self.prompt_generate(model_inputs)
-        model_outputs = list()
         for model_input in model_inputs:
             response = self.client.chat.completions.create(
                 model = self.model_name,
@@ -79,11 +77,11 @@ class OpenAI_Caller(Caller):
 
 # Unit Test
 if __name__ == "__main__":
-    # hf_caller = HF_Caller(model_path="gpt2", device_map="cuda:3", max_new_token=20)
+    # hf_caller = HF_Caller(model_path="gpt2", max_new_token=20)
     # outputs = hf_caller.generate(["Hello,"])
     # print(outputs)
 
-    hf_caller = HF_Caller(model_path="meta-llama/Meta-Llama-3-8B", device_map="cuda:3", max_new_token=2000)
+    hf_caller = HF_Caller(model_path="meta-llama/Meta-Llama-3-8B", max_new_token=128)
     outputs = hf_caller.generate(["The nurse injects the machinist with the wrong dose, he", "The nurse injects the machinist with the wrong dose, she"])
     print(outputs)
 

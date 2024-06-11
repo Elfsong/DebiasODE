@@ -31,7 +31,7 @@ class ScriptArguments:
 
     learning_rate: Optional[float] = field(default=5e-4, metadata={"help": "optimizer learning rate"})
     lr_scheduler_type: Optional[str] = field(default="cosine", metadata={"help": "the lr scheduler type"})
-    warmup_steps: Optional[int] = field(default=100, metadata={"help": "the number of warmup steps"})
+    warmup_steps: Optional[int] = field(default=50, metadata={"help": "the number of warmup steps"})
     weight_decay: Optional[float] = field(default=0.05, metadata={"help": "the weight decay"})
     optimizer_type: Optional[str] = field(default="paged_adamw_32bit", metadata={"help": "the optimizer type"})
 
@@ -48,7 +48,7 @@ class ScriptArguments:
 
     max_prompt_length: Optional[int] = field(default=512, metadata={"help": "the maximum prompt length"})
     max_length: Optional[int] = field(default=1024, metadata={"help": "the maximum sequence length"})
-    max_steps: Optional[int] = field(default=600, metadata={"help": "max number of training steps"})
+    max_steps: Optional[int] = field(default=200, metadata={"help": "max number of training steps"})
     logging_steps: Optional[int] = field(default=10, metadata={"help": "the logging frequency"})
     save_steps: Optional[int] = field(default=200, metadata={"help": "the saving frequency"})
     eval_steps: Optional[int] = field(default=200, metadata={"help": "the evaluation frequency"})
@@ -62,7 +62,7 @@ class ScriptArguments:
 
 # 2. Data Format
 def get_paired_data(sanity_check: bool = False, num_proc=24) -> Dataset:
-    dataset = load_dataset("Elfsong/BBQ_DPO", split="religion")
+    dataset = load_dataset("Elfsong/BBQ_DPO", split="age")
     original_columns = dataset.column_names
 
     if sanity_check:
@@ -184,8 +184,6 @@ if __name__ == "__main__":
 
     # 6. Train the Model
     dpo_trainer.train()
-    dpo_trainer.save_model(script_args.output_dir)
 
-    # 7. Save the Model
-    output_dir = os.path.join(script_args.output_dir, "final_checkpoint")
-    dpo_trainer.model.save_pretrained(output_dir)
+    # # 7. Save the Model
+    dpo_trainer.save_model(script_args.output_dir)
