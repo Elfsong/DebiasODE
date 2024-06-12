@@ -182,6 +182,9 @@ Answer JSON:"""
         
         return answer
     
+    def proposal_and_vote_inference(self, instance: object) -> str:
+        pass
+    
     def inference(self, prompt, max_new_token):
         if "gpt" in self.model_path:
             raw_result = self.model_caller.generate([prompt]).strip()
@@ -212,6 +215,8 @@ Answer JSON:"""
                         answer = self.self_explanation_inference(instance)
                     elif method == "self_reflection":
                         answer = self.self_reflection_inference(instance)
+                    elif method == "proposal_and_vote":
+                        answer = self.proposal_and_vote_inference(instance)
                     else:
                         raise NotImplementedError(f"Unknown method: {method}")
                     
@@ -252,7 +257,7 @@ if __name__ == "__main__":
     parser.add_argument('--benchmark', type=str, choices=['bbq', 'stereoset'])
     parser.add_argument('--category', type=str)
     parser.add_argument('--model_name', type=str)
-    parser.add_argument('--method', type=str, choices=['vanilla', 'self_explanation', 'self_reflection'])
+    parser.add_argument('--method', type=str, choices=['vanilla', 'self_explanation', 'self_reflection', 'proposal_and_vote'])
     parser.add_argument('--precentage', type=int, default=100)
     args = parser.parse_args()
 
