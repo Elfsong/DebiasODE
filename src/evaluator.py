@@ -175,7 +175,7 @@ Answer JSON:"""
 
         instance['original_answer'] = answer
 
-        prompt = self.self_explanation_prompt_generate([instance])[0]
+        prompt = self.self_reflection_prompt_generate([instance])[0]
         result_json = self.inference(prompt, max_new_token=12)
         answer = result_json["answer"]
         answer = utils.charFilter(answer.upper())
@@ -211,7 +211,7 @@ Answer JSON:"""
                     elif method == "self_explanation":
                         answer = self.self_explanation_inference(instance)
                     elif method == "self_reflection":
-                        answer = self.self_explanation_inference(instance)
+                        answer = self.self_reflection_inference(instance)
                     else:
                         raise NotImplementedError(f"Unknown method: {method}")
                     
