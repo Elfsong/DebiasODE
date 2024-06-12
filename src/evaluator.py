@@ -17,7 +17,7 @@ import argparse
 from tqdm import tqdm
 from typing import List, Dict 
 from datasets import load_dataset
-from caller import HF_Caller, OpenAI_Caller
+from caller import HF_Caller, OpenAI_Caller, Agent
 from partial_json_parser import ensure_json, loads
 
 class StereoSet_Evaluator:
@@ -183,13 +183,37 @@ Answer JSON:"""
         return answer
     
     def proposal_and_vote_inference(self, instance: object) -> str:
-        pass
+        agent = Agent("gpt-4-1106-preview", "OA")
+        
+        print(instance)
+        print("===========" * 10)
+
+        for i in range(2):
+            # Propose
+            proposal = agent.propose("age", instance)
+            print(proposal)
+            print("===========" * 10)
+
+            # Draft
+            motion = agent.draft(proposal, instance)
+            answer = loads(ensure_json(motion))['answer']
+            print(motion)
+            print("===========" * 10)
+
+            # Vote
+            vote = agent.vote("age", instance, motion)
+            print(vote)
+
+            decision = loads(ensure_json(vote))['decision']
+            if decision == "Pass": return answer
+        
+        return answer
     
     def inference(self, prompt, max_new_token):
         if "gpt" in self.model_path:
-            raw_result = self.model_caller.generate([prompt]).strip()
+            raw_result = self.model_caller.generate([{"role":"user", "content": prompt}]).strip()
         else:
-            raw_result = self.model_caller.generate([prompt], max_new_token=max_new_token)[0][len(prompt):].strip()
+            raw_result = self.model_caller.generate(prompt, max_new_token=max_new_token)[0][len(prompt):].strip()
             raw_result = self.model_caller.stop_at_stop_token(["\n"], raw_result).strip()
         result_json = loads(ensure_json(raw_result))
         print("Response: ", result_json)
@@ -236,6 +260,7 @@ Answer JSON:"""
                             self.count_map['biased'] += 1
 
                 except Exception as e:
+                    # raise e
                     print({"Error": repr(e)})
                     self.count_map['error'] += 1
             print("==========" * 5)
