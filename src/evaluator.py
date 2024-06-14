@@ -8,7 +8,7 @@ Description: Bias Evaluator
 
 # Strik on the assigned GPU.
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '4,5q'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3'
 os.environ["TOKENIZERS_PARALLELISM"] = 'false'
 
 import utils
@@ -183,29 +183,62 @@ Answer JSON:"""
         return answer
     
     def proposal_and_vote_inference(self, instance: object) -> str:
-        agent = Agent("gpt-4-1106-preview", "OA")
+        # age_agent = Agent("gpt-4-1106-preview", "OA", "age")
+        # religion_agent = Agent("gpt-4-1106-preview", "OA", "religion")
+        # gender_agent = Agent("gpt-4-1106-preview", "OA", "gender")
+
+        age_agent = Agent(self.model_caller, "HF", "age")
+        religion_agent = Agent(self.model_caller, "HF", "religion")
+        gender_agent = Agent(self.model_caller, "HF", "gender")
+
+        chairman_agent = Agent("gpt-4-1106-preview", "OA", "chair")
+        committee = [age_agent, religion_agent, gender_agent]
         
-        print(instance)
+        print(instance['context'])
+        print(instance['question'])
         print("===========" * 10)
 
-        for i in range(2):
+        motion = None
+        for round in range(3):
+            print(f"Current round: {round}")
+
             # Propose
-            proposal = agent.propose("age", instance)
-            print(proposal)
+            proposals = dict()
+            for member in committee:
+                print(f"[{member.agent_type}] bias expert is proposing...")
+                proposal = member.propose("age", instance, motion)
+                proposals[member.agent_type] = proposal
+                member.memory += [proposal]
+                print(f"[{member.agent_type}] bias expert proposes: {proposal}")
+                print("-----------------" * 10)
             print("===========" * 10)
 
             # Draft
-            motion = agent.draft(proposal, instance)
+            print(f"Chairman is drafting a motion...")
+            motion = chairman_agent.draft(proposals, instance)
             answer = loads(ensure_json(motion))['answer']
             print(motion)
             print("===========" * 10)
 
             # Vote
-            vote = agent.vote("age", instance, motion)
-            print(vote)
+            vote_dict = dict()
+            vote_list = list()
+            for member in committee: 
+                print(f"[{member.agent_type}] bias expert is voting...")
+                vote_result = member.vote(member.memory, member.agent_type, instance, motion)
+                decision = loads(ensure_json(vote_result))['decision']
+                vote_dict[member.agent_type] = decision
+                print(f"[{member.agent_type}] bias expert [{decision}] the motion.")
 
-            decision = loads(ensure_json(vote))['decision']
-            if decision == "Pass": return answer
+                vote_list += [True if decision in ["Pass", "Abstain"] else False]
+            
+            # All Pass
+            if all(vote_list):
+                break
+            
+            # Majority
+            # if sum(vote_list) / len(vote_list) > 0.5:
+            #     break
         
         return answer
     
@@ -219,7 +252,7 @@ Answer JSON:"""
         print("Response: ", result_json)
         return result_json
 
-    def evaluate(self, category: str, precentage: int, method: int) -> Dict:
+    def evaluate(self, category: str, test: str, precentage: int, method: int) -> Dict:
         self.dataset = load_dataset(path="Elfsong/BBQ", split=f'{category}[:{precentage}%]')
         self.count_map = {
             "total": 0,
@@ -229,7 +262,7 @@ Answer JSON:"""
             "error": 0
         }
         for instance in tqdm(self.dataset):
-            if instance['context_condition'] == "ambig":
+            if instance['context_condition'] == test:
                 self.count_map['total'] += 1
                 try:
                     # Inference
@@ -280,6 +313,7 @@ Answer JSON:"""
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--benchmark', type=str, choices=['bbq', 'stereoset'])
+    parser.add_argument('--test', type=str, choices=['disambig', 'ambig'])
     parser.add_argument('--category', type=str)
     parser.add_argument('--model_name', type=str)
     parser.add_argument('--method', type=str, choices=['vanilla', 'self_explanation', 'self_reflection', 'proposal_and_vote'])
@@ -292,13 +326,15 @@ if __name__ == "__main__":
 
     if wandb.config['benchmark'] == 'bbq':
         evaluator = BBQ_Evaluator(args.model_name)
-        result = evaluator.evaluate(category=args.category, precentage=args.precentage, method=args.method)
+        result = evaluator.evaluate(category=args.category, test=args.test, precentage=args.precentage, method=args.method)
     elif wandb.config['benchmark'] == 'stereoset':
         evaluator = StereoSet_Evaluator(args.model_name)
-        result = evaluator.evaluate(category=args.category, precentage=args.precentage, method=args.method)
+        result = evaluator.evaluate(category=args.category, test=args.test, precentage=args.precentage, method=args.method)
     else:
         raise NotImplementedError(f"{wandb.config['benchmark']} is unknown.")
 
     wandb.log({"result": result})
     print(result)
     # wandb.finish()
+
+

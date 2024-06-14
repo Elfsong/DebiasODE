@@ -30,7 +30,7 @@ huggingface-cli download $model_name --cache-dir /raid/hpc/mingzhe/transformers_
 # category = ["age", "disability_status", "gender_identity", "nationality", "physical_appearance", "race_ethnicity", "religion", "ses", "sexual_orientation"]
 
 # Example:
-python src/evaluator.py --benchmark bbq --category age --model_name meta-llama/Meta-Llama-3-8B
+python src/evaluator.py --benchmark bbq --category age --model_name meta-llama/Meta-Llama-3-8B --method self_reflection --test ambig
 ```
 
 - Measuring stereotypical bias in pretrained language models (StereoSet)

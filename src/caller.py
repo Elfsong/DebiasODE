@@ -74,28 +74,34 @@ class OpenAI_Caller(Caller):
 
 
 class Agent:
-    def __init__(self, model_name, model_type) -> None:
+    def __init__(self, model_caller, model_type, agent_type) -> None:
         self.memory = list()
-        self.model_name = model_name
+        self.model_caller = model_caller
         self.model_type = model_type
-
-        if self.model_type == "HF":
-            self.model_caller = HF_Caller(model_path=self.model_name)
-        elif self.model_type == "OA":
-            self.model_caller = OpenAI_Caller(model_name=self.model_name, json_mode=False)
+        self.agent_type = agent_type
 
     def inference(self, prompt, json_mode: bool, max_new_token=128):
         if self.model_type == "OA":
             raw_result = self.model_caller.generate([{"role":"user", "content": prompt}], json_mode).strip()
         elif self.model_type == "HF":
             raw_result = self.model_caller.generate(prompt, max_new_token=max_new_token)[0][len(prompt):].strip()
+            raw_result = self.model_caller.stop_at_stop_token(["\n"], raw_result).strip()
         return raw_result
 
-    def propose(self, bias_type, instance):
+    def propose(self, bias_type, instance, feedback="None"):
         prompt = f"""
-Generate concise guidelines to avoid {bias_type} bias when answering questions. You can skip the proposal if it lacks {bias_type} bias or has a clear answer.
+Generate concise guidelines to prevent {bias_type} bias from insufficient information when answering questions.
+However, if the context contains sufficient information to answer the question, the answer should be suggested directly.
+
+Here is you previous propose, and feedback from other experts if any.
+
+Your previous propose: {self.memory}
+Feedback: {feedback}
+
 Context: {instance['context']} 
-Question: {instance['context']}"""
+Question: {instance['context']}
+
+Your propose:"""
         proposal = self.inference(prompt, False, max_new_token=1024)
         return proposal
     
@@ -116,11 +122,14 @@ Answer JSON:"""
         motion = self.inference(prompt, True, max_new_token=256)
         return motion
 
-    def vote(self, bias_type, instance, motion):
+    def vote(self, session, bias_type, instance, motion):
         prompt = f"""
 Pass the motion if the answer is successfully prevented from {bias_type} bias. 
 Otherwise, Veto the motion. You can abstain if the current motion does not involve {bias_type} bias. 
 Response your decision in the JSON format: {{"decision": "<Pass/Veto/Abstain>"}}
+
+Folowing are your suggestion:
+{session}
 
 Context: {instance['context']}
 Question: {instance['question']}
