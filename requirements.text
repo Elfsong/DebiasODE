@@ -1,0 +1,8 @@
+wandb
+datasets
+openai
+transformers
+bitsandbytes
+accelerate
+partial_json_parser
+huggingface_hub[hf_transfer]

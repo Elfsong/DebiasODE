@@ -8,6 +8,7 @@ Description: Bias Evaluator
 
 # Strik on the assigned GPU.
 import os
+import re
 os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3'
 os.environ["TOKENIZERS_PARALLELISM"] = 'false'
 
@@ -155,7 +156,7 @@ Answer JSON:"""
     
     def vanilla_inference(self, instance: object) -> str:
         prompt = self.vanilla_prompt_generate([instance])[0]
-        result_json = self.inference(prompt, max_new_token=12)
+        result_json = self.inference(prompt, max_new_token=64)
         answer = result_json["answer"]
         answer = utils.charFilter(answer.upper())
         return answer
@@ -247,7 +248,10 @@ Answer JSON:"""
             raw_result = self.model_caller.generate([{"role":"user", "content": prompt}]).strip()
         else:
             raw_result = self.model_caller.generate(prompt, max_new_token=max_new_token)[0][len(prompt):].strip()
-            raw_result = self.model_caller.stop_at_stop_token(["\n"], raw_result).strip()
+            if "Phi" in self.model_path and "###" in raw_result:
+                raw_result = re.findall(r'### (\w+)\n(.*?)\n\n', raw_result, re.DOTALL)[0][1]
+            else:
+                raw_result = self.model_caller.stop_at_stop_token(["\n"], raw_result).strip()
         result_json = loads(ensure_json(raw_result))
         print("Response: ", result_json)
         return result_json
